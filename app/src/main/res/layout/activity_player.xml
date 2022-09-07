@@ -12,4 +12,9 @@
         android:layout_height="match_parent"
         app:use_controller="false" />
 
+    <com.kuaishou.akdanmaku.ui.DanmakuView
+        android:id="@+id/danmakuView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
 </FrameLayout>

@@ -1,7 +1,10 @@
 package cc.pkrs.livecc.activity
 
+import android.graphics.Color
 import android.os.Bundle
+import androidx.core.content.res.ResourcesCompat
 import cc.pkrs.livecc.R
+import cc.pkrs.livecc.danmaku.DefaultRenderer
 import cc.pkrs.livecc.data.Qos
 import cc.pkrs.livecc.data.Topic
 import cc.pkrs.livecc.entity.ReqDataDTO
@@ -15,23 +18,47 @@ import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.google.android.exoplayer2.util.MimeTypes
+import com.kuaishou.akdanmaku.DanmakuConfig
+import com.kuaishou.akdanmaku.data.DanmakuItemData
+import com.kuaishou.akdanmaku.render.SimpleRenderer
+import com.kuaishou.akdanmaku.render.TypedDanmakuRenderer
+import com.kuaishou.akdanmaku.ui.DanmakuPlayer
+import com.kuaishou.akdanmaku.ui.DanmakuView
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
 import org.eclipse.paho.client.mqttv3.MqttCallback
 import org.eclipse.paho.client.mqttv3.MqttMessage
-
+import kotlin.random.Random
 
 class PlayerActivity : BaseActivity() {
     private var player: ExoPlayer? = null
-    private var mqttHelper: MQTTHelper? = null
+    private var danmakuPlayer: DanmakuPlayer? = null
+    private val danmakuView by lazy { findViewById<DanmakuView>(R.id.danmakuView) }
+    private val simpleRenderer = SimpleRenderer()
+    private val renderer by lazy {
+        TypedDanmakuRenderer(
+            simpleRenderer,
+            DanmakuItemData.DANMAKU_STYLE_NONE to DefaultRenderer()
+        )
+    }
+    private var config = DanmakuConfig().apply {
+        textSizeScale = 1.5f
+    }
 
+    private var mqttHelper: MQTTHelper? = null
     private val server = "tcp://192.168.1.8:1883"
     private var rid: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_player)
+
         player = ExoPlayer.Builder(this).build()
         val styledPlayerView = findViewById<StyledPlayerView>(R.id.styledPlayerView)
         styledPlayerView.player = player
+
+        danmakuPlayer = DanmakuPlayer(renderer).also {
+            it.bindView(danmakuView)
+        }
 
         rid = intent.getStringExtra("rid")
         initMqtt()
@@ -43,7 +70,6 @@ class PlayerActivity : BaseActivity() {
             override fun connectionLost(cause: Throwable?) { }
 
             override fun messageArrived(topic: String?, message: MqttMessage?) {
-//                message?.payload?.let { ToastUtils.showShort(String(it)) }
                 LogUtils.iTag("msg", message?.payload?.let { String(it) })
                 val respMsg = JSON.parseObject(message?.payload?.let { String(it) }, RespMsgDTO::class.java)
                 if (respMsg.code == 0) {
@@ -54,6 +80,26 @@ class PlayerActivity : BaseActivity() {
                             getLiveDanmu()
                         } else {
                             ToastUtils.showShort("播放链接获取失败")
+                        }
+                    }
+                    else if (respMsg.type == "resp_get_danmu") {
+                        if (respMsg.data?.danmu?.content != "" && respMsg.data?.danmu?.content != "欢迎来到直播间") {
+                            val danmaku = respMsg.data?.danmu?.content?.let {
+                                DanmakuItemData(
+                                    Random.nextLong(),
+                                    danmakuPlayer?.getCurrentTimeMs()!! + 500,
+                                    it,
+                                    DanmakuItemData.DANMAKU_MODE_ROLLING,
+                                    25,
+                                    Color.WHITE,
+                                    9,
+                                    DanmakuItemData.DANMAKU_STYLE_ICON_UP,
+                                    9
+                                )
+                            }
+                            if (danmaku != null) {
+                                danmakuPlayer?.send(danmaku)
+                            }
                         }
                     }
                 }
@@ -92,6 +138,7 @@ class PlayerActivity : BaseActivity() {
         data.cid = mqttHelper?.get_clientId()
         reqMsg.data = data
         mqttHelper?.publish(Topic.TOPIC_SEND, JSON.toJSONString(reqMsg), Qos.QOS_ZERO)
+        danmakuPlayer?.start(config)
     }
 
     private fun getLiveUrl() {
@@ -111,6 +158,7 @@ class PlayerActivity : BaseActivity() {
             player!!.release()
         if (mqttHelper?.is_connected() == true)
             mqttHelper!!.disconnect()
+        danmakuPlayer?.release()
     }
 
     override fun onBackPressed() {

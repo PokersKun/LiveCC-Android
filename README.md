@@ -1,1 +1,1 @@
-"# LiveCC-Android" 
+# LiveCC-Android
