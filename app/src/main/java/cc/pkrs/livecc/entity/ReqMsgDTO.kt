@@ -9,6 +9,9 @@ class ReqMsgDTO {
     @JSONField(name = "type")
     var type: String? = null
 
+    @JSONField(name = "node")
+    var node: String? = null
+
     @JSONField(name = "data")
     var data: ReqDataDTO? = null
 }

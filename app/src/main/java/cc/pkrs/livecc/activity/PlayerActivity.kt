@@ -2,7 +2,7 @@ package cc.pkrs.livecc.activity
 
 import android.graphics.Color
 import android.os.Bundle
-import androidx.core.content.res.ResourcesCompat
+import androidx.appcompat.app.AppCompatActivity
 import cc.pkrs.livecc.R
 import cc.pkrs.livecc.danmaku.DefaultRenderer
 import cc.pkrs.livecc.data.Qos
@@ -29,7 +29,7 @@ import org.eclipse.paho.client.mqttv3.MqttCallback
 import org.eclipse.paho.client.mqttv3.MqttMessage
 import kotlin.random.Random
 
-class PlayerActivity : BaseActivity() {
+class PlayerActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
     private var danmakuPlayer: DanmakuPlayer? = null
     private val danmakuView by lazy { findViewById<DanmakuView>(R.id.danmakuView) }
@@ -41,12 +41,13 @@ class PlayerActivity : BaseActivity() {
         )
     }
     private var config = DanmakuConfig().apply {
-        textSizeScale = 1.5f
+        textSizeScale = 2.0f
     }
 
     private var mqttHelper: MQTTHelper? = null
     private val server = "tcp://192.168.1.8:1883"
     private var rid: String? = null
+    private var node: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,6 +62,7 @@ class PlayerActivity : BaseActivity() {
         }
 
         rid = intent.getStringExtra("rid")
+        node = intent.getStringExtra("node")
         initMqtt()
     }
 
@@ -93,7 +95,7 @@ class PlayerActivity : BaseActivity() {
                                     25,
                                     Color.WHITE,
                                     9,
-                                    DanmakuItemData.DANMAKU_STYLE_ICON_UP,
+                                    DanmakuItemData.DANMAKU_STYLE_NONE,
                                     9
                                 )
                             }
@@ -133,6 +135,7 @@ class PlayerActivity : BaseActivity() {
         val reqMsg = ReqMsgDTO()
         reqMsg.code = 0
         reqMsg.type = "req_get_danmu"
+        reqMsg.node = node
         val data = ReqDataDTO()
         data.rid = rid
         data.cid = mqttHelper?.get_clientId()
@@ -145,6 +148,7 @@ class PlayerActivity : BaseActivity() {
         val reqMsg = ReqMsgDTO()
         reqMsg.code = 0
         reqMsg.type = "req_get_url"
+        reqMsg.node = node
         val data = ReqDataDTO()
         data.rid = rid
         data.cid = mqttHelper?.get_clientId()

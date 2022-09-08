@@ -7,7 +7,7 @@
     tools:context=".activity.MainActivity">
 
     <LinearLayout
-        android:layout_width="300dp"
+        android:layout_width="400dp"
         android:layout_height="200dp"
         android:orientation="vertical"
         android:gravity="center_vertical"
@@ -21,14 +21,41 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_horizontal"
-            android:text="428792"
+            android:textSize="32sp"
+            android:text="361433"
             android:hint="live rid"/>
+
+        <RadioGroup
+            android:id="@+id/rgNode"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal"
+            android:layout_marginTop="20dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" >
+
+            <RadioButton
+                android:id="@+id/rbCC"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="24sp"
+                android:checked="true"
+                android:layout_marginEnd="20dp"
+                android:text="CC" />
+
+            <RadioButton
+                android:id="@+id/rbBiliBili"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="24sp"
+                android:text="BiliBili" />
+        </RadioGroup>
 
         <Button
             android:id="@+id/btnPlay"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="60dp"
             android:layout_marginTop="20dp"
+            android:textSize="24sp"
             android:text="Play" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
