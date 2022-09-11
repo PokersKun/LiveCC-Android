@@ -3,10 +3,10 @@ package cc.pkrs.livecc.activity
 import android.graphics.Color
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import cc.pkrs.livecc.MyApplication
 import cc.pkrs.livecc.R
 import cc.pkrs.livecc.danmaku.DefaultRenderer
 import cc.pkrs.livecc.data.Qos
-import cc.pkrs.livecc.data.Topic
 import cc.pkrs.livecc.entity.ReqDataDTO
 import cc.pkrs.livecc.entity.ReqMsgDTO
 import cc.pkrs.livecc.entity.RespMsgDTO
@@ -30,8 +30,8 @@ import org.eclipse.paho.client.mqttv3.MqttMessage
 import kotlin.random.Random
 
 class PlayerActivity : AppCompatActivity() {
-    private var player: ExoPlayer? = null
-    private var danmakuPlayer: DanmakuPlayer? = null
+    private lateinit var player: ExoPlayer
+    private lateinit var danmakuPlayer: DanmakuPlayer
     private val danmakuView by lazy { findViewById<DanmakuView>(R.id.danmakuView) }
     private val simpleRenderer = SimpleRenderer()
     private val renderer by lazy {
@@ -44,13 +44,17 @@ class PlayerActivity : AppCompatActivity() {
         textSizeScale = 2.0f
     }
 
-    private var mqttHelper: MQTTHelper? = null
     private val server = "tcp://192.168.1.8:1883"
-    private var rid: String? = null
-    private var node: String? = null
+    private var server_topic = "/live/cc/server"
+    private var client_topic = "/live/cc/client/"
+
+    private lateinit var mqttHelper: MQTTHelper
+    private lateinit var rid: String
+    private lateinit var node: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MyApplication.instance?.addActivity(this)
         setContentView(R.layout.activity_player)
 
         player = ExoPlayer.Builder(this).build()
@@ -61,14 +65,15 @@ class PlayerActivity : AppCompatActivity() {
             it.bindView(danmakuView)
         }
 
-        rid = intent.getStringExtra("rid")
-        node = intent.getStringExtra("node")
+        rid = intent.getStringExtra("rid").toString()
+        node = intent.getStringExtra("node").toString()
         initMqtt()
     }
 
     private fun initMqtt() {
         mqttHelper = MQTTHelper(this, server, "livecc", "203039")
-        mqttHelper!!.connect(Topic.TOPIC_MSG, Qos.QOS_ZERO, true, object : MqttCallback {
+        client_topic += mqttHelper.get_clientId()
+        mqttHelper.connect(client_topic, Qos.QOS_ZERO, true, object : MqttCallback {
             override fun connectionLost(cause: Throwable?) { }
 
             override fun messageArrived(topic: String?, message: MqttMessage?) {
@@ -82,14 +87,14 @@ class PlayerActivity : AppCompatActivity() {
                             getLiveDanmu()
                         } else {
                             ToastUtils.showShort("播放链接获取失败")
+                            finish()
                         }
-                    }
-                    else if (respMsg.type == "resp_get_danmu") {
+                    } else if (respMsg.type == "resp_get_danmu") {
                         if (respMsg.data?.danmu?.content != "" && respMsg.data?.danmu?.content != "欢迎来到直播间") {
                             val danmaku = respMsg.data?.danmu?.content?.let {
                                 DanmakuItemData(
                                     Random.nextLong(),
-                                    danmakuPlayer?.getCurrentTimeMs()!! + 500,
+                                    danmakuPlayer.getCurrentTimeMs() + 500,
                                     it,
                                     DanmakuItemData.DANMAKU_MODE_ROLLING,
                                     25,
@@ -100,7 +105,7 @@ class PlayerActivity : AppCompatActivity() {
                                 )
                             }
                             if (danmaku != null) {
-                                danmakuPlayer?.send(danmaku)
+                                danmakuPlayer.send(danmaku)
                             }
                         }
                     }
@@ -112,7 +117,7 @@ class PlayerActivity : AppCompatActivity() {
         val waitThread = object : Thread() {
             override fun run() {
                 while(true) {
-                    if (mqttHelper!!.is_connected() == true)
+                    if (mqttHelper.is_connected() == true)
                         break;
                 }
                 getLiveUrl()
@@ -126,9 +131,9 @@ class PlayerActivity : AppCompatActivity() {
             .setUri(url)
             .setMimeType(MimeTypes.APPLICATION_M3U8)
             .build()
-        player!!.setMediaItem(mediaItem)
-        player!!.prepare()
-        player!!.play()
+        player.setMediaItem(mediaItem)
+        player.prepare()
+        player.play()
     }
 
     private fun getLiveDanmu() {
@@ -138,10 +143,10 @@ class PlayerActivity : AppCompatActivity() {
         reqMsg.node = node
         val data = ReqDataDTO()
         data.rid = rid
-        data.cid = mqttHelper?.get_clientId()
+        data.cid = mqttHelper.get_clientId()
         reqMsg.data = data
-        mqttHelper?.publish(Topic.TOPIC_SEND, JSON.toJSONString(reqMsg), Qos.QOS_ZERO)
-        danmakuPlayer?.start(config)
+        mqttHelper.publish(server_topic, JSON.toJSONString(reqMsg), Qos.QOS_ZERO)
+        danmakuPlayer.start(config)
     }
 
     private fun getLiveUrl() {
@@ -151,18 +156,20 @@ class PlayerActivity : AppCompatActivity() {
         reqMsg.node = node
         val data = ReqDataDTO()
         data.rid = rid
-        data.cid = mqttHelper?.get_clientId()
+        data.cid = mqttHelper.get_clientId()
         reqMsg.data = data
-        mqttHelper?.publish(Topic.TOPIC_SEND, JSON.toJSONString(reqMsg), Qos.QOS_ZERO)
+        mqttHelper.publish(server_topic, JSON.toJSONString(reqMsg), Qos.QOS_ZERO)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (player!!.isPlaying)
-            player!!.release()
-        if (mqttHelper?.is_connected() == true)
-            mqttHelper!!.disconnect()
-        danmakuPlayer?.release()
+        if (player.isPlaying == true)
+            player.release()
+        if (mqttHelper.is_connected() == true) {
+            mqttHelper.publish("/live/cc/will", mqttHelper.get_clientId().toString(), Qos.QOS_ZERO)
+            mqttHelper.disconnect()
+        }
+        danmakuPlayer.release()
     }
 
     override fun onBackPressed() {

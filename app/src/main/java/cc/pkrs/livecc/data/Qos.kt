@@ -10,17 +10,17 @@ package cc.pkrs.livecc.data
  * @UpdateRemark:   更新说明：
  */
 enum class Qos{
-    QOS_ZERO{
+    QOS_ZERO {
         override fun value():Int{
             return 0
         }
     },
-    QOS_ONE{
+    QOS_ONE {
         override fun value():Int{
             return 1
         }
     },
-    QOS_TWO{
+    QOS_TWO {
         override fun value():Int{
             return 2
         }
